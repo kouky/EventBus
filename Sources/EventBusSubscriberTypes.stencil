@@ -1,0 +1,16 @@
+{% for busType in types.implementing.EventBusType %}
+
+// sourcery:file:{{ busType.name|replace:"Type","_SubscriberType"}}
+import Foundation
+
+{% for eventType in types.implementing.EventBusEventType %}
+{% if eventType.annotations.eventBus ==  busType.name|replace:"Type","" %}
+public protocol {{eventType.name}}_SubscriberType : class {
+    var busToken: UUID? { get set}
+    func handleEvent(_ event: {{eventType.name}})
+}
+
+{% endif %}
+{% endfor %}
+// sourcery:end
+{% endfor %}

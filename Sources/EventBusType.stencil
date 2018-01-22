@@ -1,0 +1,48 @@
+{% for busType in types.implementing.EventBusType %}
+
+// sourcery:file:{{ busType.name|replace:"Type",""}}
+import Foundation
+
+public final class {{busType.name|replace:"Type",""}} : EventBusType {
+
+    // Serial isolation queue for thread safe writes to subscribers and
+    // guaranteed order of event publishing
+    private var queue = DispatchQueue(label: "org.kouky.EventBus.{{busType.name|replace:"Type",""}}")
+
+    {% for eventType in types.implementing.EventBusEventType %}
+    {% if eventType.annotations.eventBus ==  busType.name|replace:"Type","" %}
+    // MARK: {{eventType.name}}
+    private var subscribers_{{eventType.name}}: Dictionary<UUID, {{eventType.name}}_SubscriberType> = [:]
+
+    public func subscribe(_ subscriber: {{eventType.name}}_SubscriberType) {
+        unsubscribe(subscriber)
+        let id = UUID()
+        subscriber.busToken = id
+        queue.sync(flags: .barrier) {
+            self.subscribers_{{eventType.name}}[id] = subscriber
+        }
+    }
+
+    public func publishEvent(_ event: {{eventType.name}}) {
+        queue.async {
+            for (_, subscriber) in self.subscribers_{{eventType.name}} {
+                subscriber.handleEvent(event)
+            }
+        }
+    }
+
+    public func unsubscribe(_ subscriber: {{eventType.name}}_SubscriberType) {
+        if let token = subscriber.busToken {
+            queue.sync(flags: .barrier) {
+                self.subscribers_{{eventType.name}}.removeValue(forKey: token)
+                subscriber.busToken = nil
+            }
+        }
+    }
+
+    {% endif %}
+    {% endfor %}
+}
+
+// sourcery:end
+{% endfor %}
